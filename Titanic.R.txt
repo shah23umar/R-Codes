@@ -1,0 +1,82 @@
+####################Logistics Regression Titantic#################################
+train <- read.csv('train.csv',header = TRUE,sep = ',',na.strings = c(""))
+test <- read.csv('test.csv',,header = TRUE,sep = ',',na.strings = c(""))
+#Audit Data
+str(train)
+train$Survived <- as.factor(train$Survived)
+train$Pclass <- as.factor(train$Pclass)
+str(train)
+summary(train)
+train$Age <- ifelse(is.na(train$Age),median(train$Age,na.rm = TRUE),train$Age)
+sum(is.na(train$Age))
+sum(is.na(train$Cabin))
+train$Cabin <- ifelse(is.na(train$Cabin),'E31',train$Cabin)
+train$Embarked <- as.character(train$Embarked)
+train$Embarked <- ifelse(is.na(train$Embarked),'S',train$Embarked)
+sum(is.na(train$Embarked))
+train$Embarked <- as.factor(train$Embarked)
+is.factor(train$Embarked)
+skewness(train$Age)
+boxplot(train$Age)
+skewness(train$Fare)
+boxplot(train$Fare)
+library(e1071)
+train$LN_AGE <- log(train$Age)
+train$LN_FARE <- log(train$Fare)
+skewness(train$LN_AGE)
+train$LN_FARE <- ifelse(train$LN_FARE==-Inf, 0, train$LN_FARE)
+skewness(train$LN_FARE)
+tbl <- table(train$Sex,train$Survived)
+table(train$Sex,train$Survived)
+table(train$Pclass,train$Survived)
+chisq.test(tbl)
+library(Hmisc)
+cormat <- subset(train,select = c('Age','SibSp','Parch','Fare'))
+correlationmatrix <- rcorr(as.matrix(cormat))
+cormat <- as.data.frame(correlationmatrix$r)
+names(train)
+##############Logistic Regression#######
+model <- glm(Survived~Pclass+Sex+Age+SibSp+Parch+Fare+Embarked,family = 'binomial',data=train)
+
+view (model)
+summary(model)
+
+model1 <- glm(Survived~Pclass+Sex+Age+SibSp+Parch+LN_FARE+Embarked,family = 'binomial',data=train)
+summary(model1)
+
+train$probs <- model1$fitted.values
+
+train$preds_lr <- ifelse(train$probs>0.50,1,0)
+
+cm_logreg <- table(train$Survived,train$preds_lr)
+print(cm_logreg)
+
+###model Test######
+test$Pclass <- as.factor(test$Pclass)
+test$Age <- ifelse(is.na(test$Age),median(test$Age,na.rm = TRUE),test$Age)
+str(test)
+test$Fare <- ifelse(is.na(test$Fare),median(test$Fare,na.rm = TRUE),test$Fare)
+test$LN_FARE <- log(test$Fare)
+summary(test$LN_FARE)
+test$LN_FARE <- ifelse(test$LN_FARE==-Inf, 0, test$LN_FARE)
+test$Survived_Probs <- predict(model1,test,type = 'response')
+test$Survived <- ifelse(test$Survived_Probs >=0.50,1,0)
+write.csv(test,'final.csv')
+#######################Decision Tree Titanic#################
+library(party)
+model_ct <- ctree(Survived~Pclass+Sex+Age+SibSp+Parch+LN_FARE+Embarked,data = train) 
+train$Survived_CTProds <- predict(model_ct,train,class = 'class')
+table(train$Survived,train$Survived_CTProds)
+summary(model_ct)
+model_ct
+##########################Test Decision Tree################
+names(test)
+test$Survived_CT <- predict(model_ct,test, type = 'response')
+write.csv(test,'final_SurviviedCT.csv')
+###########################Random Forest######################
+library(randomForest)
+set.seed(123)
+model_rf <- randomForest(Survived~Pclass+Sex+Age+SibSp+Parch+LN_FARE+Embarked,data = train)
+summary(model_rf)                          
+
+model_rf
